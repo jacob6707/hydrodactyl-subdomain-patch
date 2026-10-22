@@ -1,17 +1,17 @@
 diff --git a/.github/workflows/dev-build.yaml b/.github/workflows/dev-build.yaml
-index fef6d44ee46d2f195eed518fc33b3bcffcc1d5a2..2542766e4fa9ce003a87e450f5d6f3c109b3a5f7 100644
+index 1943de8c5..d60544838 100644
 --- a/.github/workflows/dev-build.yaml
 +++ b/.github/workflows/dev-build.yaml
-@@ -2,8 +2,9 @@ name: Docker Build
- on:
+@@ -4,6 +4,7 @@ on:
    push:
      branches:
        - main
 +      - hydrodactyl-subdomain
-
+ 
  permissions:
      packages: write
 @@ -11,7 +12,7 @@ permissions:
+ 
  jobs:
    build-dev:
 -    runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -19,18 +19,18 @@ index fef6d44ee46d2f195eed518fc33b3bcffcc1d5a2..2542766e4fa9ce003a87e450f5d6f3c1
      timeout-minutes: 30
      steps:
        - name: Checkout code
-@@ -28,17 +29,17 @@ jobs:
+@@ -29,19 +30,19 @@ jobs:
        - name: Set up QEMU
          uses: docker/setup-qemu-action@v3
-
+ 
 -      - name: Setup Blacksmith Builder
 -        uses: useblacksmith/setup-docker-builder@v1
 +      - name: Set up Docker Buildx
 +        uses: docker/setup-buildx-action@v3
-
+ 
        - name: Set image name
          run: echo "IMAGE=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
+ 
        - name: Build and push canary image
 -        uses: useblacksmith/build-push-action@v2
 +        uses: docker/build-push-action@v6
@@ -43,8 +43,9 @@ index fef6d44ee46d2f195eed518fc33b3bcffcc1d5a2..2542766e4fa9ce003a87e450f5d6f3c1
 +            ghcr.io/${{ env.IMAGE }}:${{ github.ref_name == 'hydrodactyl-subdomain' && 'canary-patch' || 'canary' }}
 +            ghcr.io/${{ env.IMAGE }}:${{ github.ref_name == 'hydrodactyl-subdomain' && 'canary-patch' || 'canary' }}-${{ github.sha }}
            platforms: linux/amd64,linux/arm64
+ 
 diff --git a/.github/workflows/prod-build.yaml b/.github/workflows/prod-build.yaml
-index 372b601f61297b9e79d27683c5ae3d3b9b54e541..6c20367f4570f2f3c8122d893e9f38422e007f77 100644
+index ef6086c70..4e42217bf 100644
 --- a/.github/workflows/prod-build.yaml
 +++ b/.github/workflows/prod-build.yaml
 @@ -6,7 +6,7 @@ permissions:
@@ -53,34 +54,18 @@ index 372b601f61297b9e79d27683c5ae3d3b9b54e541..6c20367f4570f2f3c8122d893e9f3842
    build-release:
 -    runs-on: blacksmith-4vcpu-ubuntu-2404
 +    runs-on: ubuntu-latest
+     timeout-minutes: 30
      steps:
        - name: Checkout code
-         uses: actions/checkout@v4
-@@ -18,6 +18,15 @@ jobs:
-         id: repo
-         run: echo "repo=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-
-+      - name: Update version in config/app.php
-+        run: |
-+          sed -i "s/'version' => '[^']*'/'version' => 'v${{ inputs.version }}'/" config/app.php
-+
-+      - name: Commit version bump
-+        run: |
-+          git add config/app.php
-+          git commit -m "ci: bump v${{ inputs.version }}" || echo "No changes to commit"
-+
-       - name: Login to GHCR
-         uses: docker/login-action@v3
-         with:
-@@ -28,11 +37,11 @@ jobs:
+@@ -29,11 +29,11 @@ jobs:
        - name: Set up QEMU (for multi-arch)
          uses: docker/setup-qemu-action@v3
-
+ 
 -      - name: Setup Blacksmith Builder
 -        uses: useblacksmith/setup-docker-builder@v1
 +      - name: Set up Docker Buildx
 +        uses: docker/setup-buildx-action@v3
-
+ 
        - name: Build and push
 -        uses: useblacksmith/build-push-action@v2
 +        uses: docker/build-push-action@v6
@@ -88,7 +73,7 @@ index 372b601f61297b9e79d27683c5ae3d3b9b54e541..6c20367f4570f2f3c8122d893e9f3842
            context: .
            push: true
 diff --git a/.github/workflows/pull-request.yaml b/.github/workflows/pull-request.yaml
-index d7bc7964805610e37e91737c70c393e1a73c1290..d22a9c0a96593bec254a2e45c9daaf4c71f14c38 100644
+index 5c9ae9dec..b36614bf5 100644
 --- a/.github/workflows/pull-request.yaml
 +++ b/.github/workflows/pull-request.yaml
 @@ -4,7 +4,7 @@ on:
@@ -97,15 +82,15 @@ index d7bc7964805610e37e91737c70c393e1a73c1290..d22a9c0a96593bec254a2e45c9daaf4c
    quality:
 -    runs-on:  blacksmith-2vcpu-ubuntu-2404
 +    runs-on:  ubuntu-latest
+     timeout-minutes: 15
      permissions:
        contents: write
-     steps:
 diff --git a/.github/workflows/release-action.yaml b/.github/workflows/release-action.yaml
-index 7b67fd6fbaadd95aca8818505d99415ee66b01a4..a36a35df718fdb1fb8921863cc145201b00a3eb5 100644
+index 7b67fd6fb..a36a35df7 100644
 --- a/.github/workflows/release-action.yaml
 +++ b/.github/workflows/release-action.yaml
 @@ -16,7 +16,7 @@ permissions:
-
+ 
  jobs:
    create-release:
 -    runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -114,33 +99,24 @@ index 7b67fd6fbaadd95aca8818505d99415ee66b01a4..a36a35df718fdb1fb8921863cc145201
        - name: Checkout code
          uses: actions/checkout@v4
 diff --git a/.github/workflows/tests.yml b/.github/workflows/tests.yml
-index d320968e61d45bdcf5e8ba605d281dc97f7bc155..00634154cc1a7f356d5b9224efe4bc04b15067fa 100644
+index 818161c21..5dd6133a8 100644
 --- a/.github/workflows/tests.yml
 +++ b/.github/workflows/tests.yml
-@@ -12,7 +12,7 @@ jobs:
-         php: [8.4, 8.5]
-         db: [mysql, mariadb, pgsql]
-
--    runs-on:  blacksmith-2vcpu-ubuntu-2404
-+    runs-on:  ubuntu-latest
-
-     services:
-       mysql:
-@@ -97,7 +97,7 @@ jobs:
-   build-dev:
-     if: github.event_name == 'push'
-     needs: tests
--    runs-on:  blacksmith-2vcpu-ubuntu-2404
-+    runs-on:  ubuntu-latest
-
+@@ -7,7 +7,7 @@ on:
+ jobs:
+   frontend:
+     name: Frontend checks
+-    runs-on: blacksmith-2vcpu-ubuntu-2404
++    runs-on: ubuntu-latest
+     timeout-minutes: 10
+ 
      steps:
-       - uses: actions/checkout@v4
 diff --git a/app/Services/Subdomain/SubdomainManagementService.php b/app/Services/Subdomain/SubdomainManagementService.php
-index 8bff0c1398a8e9988fb81d5b021dd080d262ea25..7eba35074bfb0409104f89f3c4e73f352787250d 100644
+index b379645aa..69ad15c78 100644
 --- a/app/Services/Subdomain/SubdomainManagementService.php
 +++ b/app/Services/Subdomain/SubdomainManagementService.php
-@@ -641,6 +641,11 @@ class SubdomainManagementService
-
+@@ -640,6 +640,11 @@ class SubdomainManagementService
+ 
              if ($useAlias) {
                  $record['content'] = !empty($allocationAlias) ? $allocationAlias : $allocationIp;
 +
@@ -150,8 +126,8 @@ index 8bff0c1398a8e9988fb81d5b021dd080d262ea25..7eba35074bfb0409104f89f3c4e73f35
 +
                  continue;
              }
-
-@@ -670,4 +675,4 @@ class SubdomainManagementService
+ 
+@@ -669,4 +674,4 @@ class SubdomainManagementService
      {
          return $serverName;
      }
@@ -159,34 +135,30 @@ index 8bff0c1398a8e9988fb81d5b021dd080d262ea25..7eba35074bfb0409104f89f3c4e73f35
 \ No newline at end of file
 +}
 diff --git a/resources/scripts/components/server/console/StatGraphs.tsx b/resources/scripts/components/server/console/StatGraphs.tsx
-index 3875db774985df2ccfabba2132ccd19ae205a6cd..7167b15fc4892e95339cde8dde6eb6351418974b 100644
+index 47d28cccd..9a56a11eb 100644
 --- a/resources/scripts/components/server/console/StatGraphs.tsx
 +++ b/resources/scripts/components/server/console/StatGraphs.tsx
 @@ -1,6 +1,7 @@
  import { CloudDownload, CloudUpload } from '@carbon/icons-react';
--import { useEffect, useRef, useState } from 'react';
-+import { useCallback, useEffect, useRef, useState } from 'react';
- import { Line } from 'react-chartjs-2';
+-import { useEffect, useMemo, useRef, useState } from 'react';
++import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+ import getServerResourceHistory from '@/api/server/getServerResourceHistory';
 +import { getSubdomainInfo, type SubdomainInfo } from '@/api/server/network/subdomain';
  import CopyOnClick from '@/components/elements/CopyOnClick';
+ import { type ChartConfig, EChartsLineChart } from '@/components/evilcharts/charts/echarts-line-chart';
  import ChartBlock from '@/components/server/console/ChartBlock';
- import { useChart, useChartTickLabel } from '@/components/server/console/chart';
-@@ -10,9 +11,6 @@ import { bytesToString, ip } from '@/lib/formatters';
- import { hexToRgba } from '@/lib/helpers';
+@@ -9,7 +10,6 @@ import { useTranslation } from '@/i18n/I18nProvider';
+ import { bytesToString, ip, mbToBytes } from '@/lib/formatters';
  import useWebsocketEvent from '@/plugins/useWebsocketEvent';
  import { ServerContext } from '@/state/server';
--import formatUptime from '../UptimeDuration';
 -
--import formatUptime from '../UptimeDuration';
-
- interface StatsData {
-     cpu_absolute: number;
-@@ -27,7 +25,22 @@ interface StatsData {
- const StatGraphs = () => {
-     const status = ServerContext.useStoreState((state) => state.status.value);
-     const limits = ServerContext.useStoreState((state) => state.server.data?.limits);
-+    const uuid = ServerContext.useStoreState((state) => state.server.data?.uuid);
-     const previous = useRef<Record<'tx' | 'rx', number>>({ tx: -1, rx: -1 });
+ import formatUptime from '../UptimeDuration';
+ 
+ const POINTS = 20;
+@@ -83,6 +83,21 @@ const StatGraphs = () => {
+     const [live, setLive] = useState<LiveStats>(EMPTY_STATS);
+     const [samples, setSamples] = useState<Sample[]>(() => readCachedSamples(uuid));
+ 
 +    const [subdomainInfo, setSubdomainInfo] = useState<SubdomainInfo | null>(null);
 +
 +    const loadSubdomainInfo = useCallback(async () => {
@@ -201,19 +173,20 @@ index 3875db774985df2ccfabba2132ccd19ae205a6cd..7167b15fc4892e95339cde8dde6eb635
 +    useEffect(() => {
 +        loadSubdomainInfo();
 +    }, [loadSubdomainInfo]);
-
-     const cpu = useChartTickLabel('CPU', limits.cpu, '%', 2);
-     const [uptime, setUptime] = useState(0);
-@@ -107,8 +120,10 @@ const StatGraphs = () => {
-                 <div>
-                     <div className='group p-4 justify-between relative rounded-xl border border-[#ffffff11] bg-[#110f0d] flex gap-4 text-sm'>
-                         <h3 className='font-extrabold'>IP Address</h3>
--                        <CopyOnClick text={allocation}>
--                            <div className='font-medium'>{allocation}</div>
-+                        <CopyOnClick text={subdomainInfo?.current_subdomain?.attributes.full_domain || allocation}>
-+                            <div className='font-medium'>
-+                                {subdomainInfo?.current_subdomain?.attributes.full_domain || allocation}
-+                            </div>
-                         </CopyOnClick>
-                     </div>
-                 </div>
++
+     useEffect(() => {
+         if (!uuid || samples.length === 0) return;
+ 
+@@ -180,8 +195,10 @@ const StatGraphs = () => {
+                 <p className='text-xs font-semibold uppercase tracking-wide text-cream-400/60'>
+                     {t('server.console.ip_address')}
+                 </p>
+-                <CopyOnClick text={allocation}>
+-                    <div className='mt-1 truncate text-sm font-medium text-cream-50 tabular-nums'>{allocation}</div>
++                <CopyOnClick text={subdomainInfo?.current_subdomain?.attributes.full_domain || allocation}>
++                    <div className='mt-1 truncate text-sm font-medium text-cream-50 tabular-nums'>
++                        {subdomainInfo?.current_subdomain?.attributes.full_domain || allocation}
++                    </div>
+                 </CopyOnClick>
+             </div>
+ 
